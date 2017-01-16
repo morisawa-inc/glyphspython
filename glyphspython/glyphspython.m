@@ -17,6 +17,7 @@
 
 #include <dlfcn.h>
 #import <Foundation/Foundation.h>
+#import <ApplicationServices/ApplicationServices.h>
 #import <Python/Python.h>
 
 int main(int argc, const char * argv[]) {
@@ -55,6 +56,8 @@ int main(int argc, const char * argv[]) {
     }
     // Provide a Python interpreter with some modules loaded using C API.
     @autoreleasepool {
+        ProcessSerialNumber psn = {0, kCurrentProcess};
+        TransformProcessType(&psn, kProcessTransformToUIElementApplication);
         void *handle = dlopen("/Applications/Glyphs.app/Contents/MacOS/Glyphs", RTLD_LOCAL);
         [[NSBundle bundleWithPath:@"/Applications/Glyphs.app/Contents/Frameworks/GlyphsCore.framework"] load];
         [[NSBundle bundleWithPath:@"/Applications/Glyphs.app/Contents/Frameworks/OTF.framework"] load];
