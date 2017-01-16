@@ -71,8 +71,12 @@ int main(int argc, const char * argv[]) {
         TransformProcessType(&psn, kProcessTransformToUIElementApplication);
         void *handle = dlopen("/Applications/Glyphs.app/Contents/MacOS/Glyphs", RTLD_LOCAL);
         [[NSBundle bundleWithPath:@"/Applications/Glyphs.app/Contents/Frameworks/GlyphsCore.framework"] load];
-        [[NSBundle bundleWithPath:@"/Applications/Glyphs.app/Contents/Frameworks/OTF.framework"] load];
-        [[NSBundle bundleWithPath:@"/Applications/Glyphs.app/Contents/Frameworks/UFO.framework"] load];
+        for (NSString *filename in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Applications/Glyphs.app/Contents/Plugins" error:nil]) {
+            NSString *extension = [filename pathExtension];
+            if ([extension isEqualToString:@"glyphsFilter"] || [extension isEqualToString:@"glyphsFileFormat"]) {
+                [[NSBundle bundleWithPath:[@"/Applications/Glyphs.app/Contents/Plugins" stringByAppendingPathComponent:filename]] load];
+            }
+        }
         if (!NSClassFromString(@"GSFont")) {
             fprintf(stderr, "error: failed to load frameworks\n");
             return 132;
