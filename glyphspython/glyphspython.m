@@ -16,6 +16,8 @@
 #include <sys/wait.h>
 
 #include <dlfcn.h>
+#include <libproc.h>
+
 #import <Foundation/Foundation.h>
 #import <ApplicationServices/ApplicationServices.h>
 #import <Python/Python.h>
@@ -27,6 +29,14 @@ int main(int argc, const char * argv[]) {
     // Moreover, Glyphs.app apparently performs a self-integrity test on startup and silently aborts if you
     // put any files inside the bundle. To compensate for the situation, we temporarily relocate the executable
     // in /Application/Glyphs.app/Contents/MacOS and unlink it immediately when it is done.
+    
+    char self_path[PROC_PIDPATHINFO_MAXSIZE];
+    if (proc_pidpath(getpid(), self_path, sizeof(self_path)) < 0) {
+        fprintf(stderr, "error: failed to obtain path from pid\n");
+        return 127;
+    }
+    argv[0] = self_path;
+    
     char executable_path[PATH_MAX] = {0};
     strncpy(executable_path, "/Applications/Glyphs.app/Contents/MacOS/", PATH_MAX);
     strncat(executable_path, basename((char *)argv[0]), PATH_MAX);
@@ -50,7 +60,8 @@ int main(int argc, const char * argv[]) {
                 exit(EXIT_FAILURE);
             }
         } else {
-            fprintf(stderr, "error: failed to create link\n");
+            fprintf(stderr, "error: failed to create link: ");
+            perror(NULL);
             return 129;
         }
     }
