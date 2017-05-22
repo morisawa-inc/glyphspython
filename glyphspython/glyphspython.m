@@ -22,6 +22,24 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import <Python/Python.h>
 
+#import <AppKit/AppKit.h>
+
+@interface NSApplication (GSApplicationAdditions)
++ (NSApplication *)sharedApplication;
+@end
+
+@implementation NSApplication (GSApplicationAdditions)
+
++ (NSApplication *)sharedApplication {
+    // A dirty hack to replace the global 'Glyphs' object with GSApplication instead of NSApplication.
+    static dispatch_once_t once;
+    static NSApplication *sharedInstance = nil;
+    dispatch_once(&once, ^{ sharedInstance = [[NSClassFromString(@"GSApplication") alloc] init]; });
+    return sharedInstance;
+}
+
+@end
+
 int main(int argc, const char * argv[]) {
     // Relocate the executable inside the application bundle.
     // GlyphsCore.framework seems to have a dependency on GSFontTools.framework, and it tries to resolve
