@@ -180,6 +180,7 @@ int main(int argc, const char * argv[]) {
         PyRun_SimpleString("import objc, sys");
         PyRun_SimpleString("sys.path.append('/Applications/Glyphs.app/Contents/Scripts')");
         PyRun_SimpleString("globals().update(__import__('GlyphsApp', globals(), locals()).__dict__)");
+        PyRun_SimpleString("globals()['__name__'] = '__main__'");
         Py_Main(argc, (char **)argv);
         Py_Finalize();
         dlclose(handle);
