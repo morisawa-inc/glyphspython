@@ -36,6 +36,7 @@
 
 - (instancetype)init {
     if ((self = [super init])) {
+        [self registerDefaults];
         NSMutableArray *mutableFilterBundles = [[NSMutableArray alloc] initWithCapacity:0];
         NSMutableArray *mutableFileFormatBundles = [[NSMutableArray alloc] initWithCapacity:0];
         for (NSString *filename in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Applications/Glyphs.app/Contents/Plugins" error:nil]) {
@@ -72,6 +73,31 @@
         signature = [NSMethodSignature signatureWithObjCTypes:"v@:"];
     }
     return signature;
+}
+
+- (void)registerDefaults {
+    [[NSUserDefaults standardUserDefaults] registerDefaults:@{
+        @"GSFontViewWidth": @(8500),
+        @"scale": @(0.5),
+        @"showMetrics": @(YES),
+        @"showHints": @(YES),
+        @"showNodes": @(YES),
+        @"showInfo": @(YES),
+        @"OffsettedMasterCompatibility": @(YES),
+        @"fillPreview": @(YES),
+        @"showBackground": @(YES),
+        @"showShadowPath": @(YES),
+        @"drawShadowAccents": @(YES),
+        @"selected Tool": @(2),
+        @"glyphIconCollectionSize": @(128.0),
+        @"SUShowCuttingEdgeVersion": @(NO),
+        @"macroCode": @"# type your Python code here and press cmd+Return to run.",
+        @"ImportConvertReadableGlyphnames": @(YES),
+        @"ImportKeepGlyphsNames": @(YES),
+        @"GSDisableVersionsinLion": @(YES),
+        @"supportsSmartGlyphs": @(YES),
+        @"showBoundingBox": @(YES)
+    }];
 }
 
 @end
