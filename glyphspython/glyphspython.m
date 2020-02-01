@@ -39,16 +39,16 @@
         [self registerDefaults];
         NSMutableArray *mutableFilterBundles = [[NSMutableArray alloc] initWithCapacity:0];
         NSMutableArray *mutableFileFormatBundles = [[NSMutableArray alloc] initWithCapacity:0];
-        for (NSString *filename in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Applications/Glyphs.app/Contents/Plugins" error:nil]) {
+        for (NSString *filename in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[NSBundle mainBundle] builtInPlugInsPath] error:nil]) {
             NSString *extension = [filename pathExtension];
             if ([extension isEqualToString:@"glyphsFilter"]) {
-                NSBundle *bundle = [NSBundle bundleWithPath:[@"/Applications/Glyphs.app/Contents/Plugins" stringByAppendingPathComponent:filename]];
+                NSBundle *bundle = [NSBundle bundleWithPath:[[[NSBundle mainBundle] builtInPlugInsPath] stringByAppendingPathComponent:filename]];
                 if (bundle) {
                     [bundle load];
                     [mutableFilterBundles addObject:bundle];
                 }
             } else if ([extension isEqualToString:@"glyphsFileFormat"]) {
-                NSBundle *bundle = [NSBundle bundleWithPath:[@"/Applications/Glyphs.app/Contents/Plugins" stringByAppendingPathComponent:filename]];
+                NSBundle *bundle = [NSBundle bundleWithPath:[[[NSBundle mainBundle] builtInPlugInsPath] stringByAppendingPathComponent:filename]];
                 if (bundle) {
                     [bundle load];
                     [mutableFileFormatBundles addObject:bundle];
@@ -175,7 +175,7 @@
     static dispatch_once_t once_;
     static NSBundle *mainBundle = nil;
     dispatch_once(&once_, ^{
-        mainBundle = [NSBundle bundleWithPath:@"/Applications/Glyphs.app"];
+        mainBundle = [NSBundle bundleWithPath:[[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:@"com.GeorgSeifert.Glyphs2"]];
     });
     return mainBundle;
 }
@@ -187,19 +187,26 @@ int main(int argc, const char * argv[]) {
     @autoreleasepool {
         ProcessSerialNumber psn = {0, kCurrentProcess};
         TransformProcessType(&psn, kProcessTransformToUIElementApplication);
-        void *handle = dlopen("/Applications/Glyphs.app/Contents/MacOS/Glyphs", RTLD_LOCAL);
-        [[NSBundle bundleWithPath:@"/Applications/Glyphs.app/Contents/Frameworks/GlyphsCore.framework"] load];
-        if (!NSClassFromString(@"GSFont")) {
-            fprintf(stderr, "error: failed to load frameworks\n");
-            return 132;
+        
+        void *handle = dlopen([[[NSBundle mainBundle] executablePath] fileSystemRepresentation], RTLD_LOCAL);
+        {
+            NSString *glyphsCoreFrameworkPath = [[[NSBundle mainBundle] sharedFrameworksPath] stringByAppendingPathComponent:@"GlyphsCore.framework"]; // @"/Applications/Glyphs.app/Frameworks/GlyphsCore.framework"
+            [[NSBundle bundleWithPath:glyphsCoreFrameworkPath] load];
+            if (!NSClassFromString(@"GSFont")) {
+                fprintf(stderr, "error: failed to load frameworks\n");
+                dlclose(handle);
+                return 132;
+            }
+            Py_Initialize();
+            NSString *scriptsPath = [[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Scripts"]; // @"/Applications/Glyphs.app/Contents/Scripts";
+            PyRun_SimpleStringFlags([[NSString stringWithFormat:
+                                      @"import objc, sys;"
+                                      @"sys.path.append(r'''%@''');"
+                                      @"globals().update(__import__('GlyphsApp', globals(), locals()).__dict__);"
+                                      @"globals()['__name__'] = '__main__';", scriptsPath] fileSystemRepresentation], NULL);
+            Py_Main(argc, (char **)argv);
+            Py_Finalize();
         }
-        Py_Initialize();
-        PyRun_SimpleString("import objc, sys");
-        PyRun_SimpleString("sys.path.append('/Applications/Glyphs.app/Contents/Scripts')");
-        PyRun_SimpleString("globals().update(__import__('GlyphsApp', globals(), locals()).__dict__)");
-        PyRun_SimpleString("globals()['__name__'] = '__main__'");
-        Py_Main(argc, (char **)argv);
-        Py_Finalize();
         dlclose(handle);
     }
     return 0;
