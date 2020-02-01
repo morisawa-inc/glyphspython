@@ -190,6 +190,7 @@ int main(int argc, const char * argv[]) {
         
         void *handle = dlopen([[[NSBundle mainBundle] executablePath] fileSystemRepresentation], RTLD_LOCAL);
         {
+            NSApp = [NSApplication sharedApplication];
             NSString *glyphsCoreFrameworkPath = [[[NSBundle mainBundle] sharedFrameworksPath] stringByAppendingPathComponent:@"GlyphsCore.framework"]; // @"/Applications/Glyphs.app/Frameworks/GlyphsCore.framework"
             [[NSBundle bundleWithPath:glyphsCoreFrameworkPath] load];
             if (!NSClassFromString(@"GSFont")) {
