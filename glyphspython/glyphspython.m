@@ -149,49 +149,40 @@
     
 @end
 
-int main(int argc, const char * argv[]) {
-    // Relocate the executable inside the application bundle.
-    // GlyphsCore.framework seems to have a dependency on GSFontTools.framework, and it tries to resolve
-    // the dylib based on the path @executable_path/../Frameworks/GSFontTools.framework/Versions/A/GSFontTools.
-    // Moreover, Glyphs.app apparently performs a self-integrity test on startup and silently aborts if you
-    // put any files inside the bundle. To compensate for the situation, we temporarily relocate the executable
-    // in /Application/Glyphs.app/Contents/MacOS and unlink it immediately when it is done.
-    
-    char self_path[PROC_PIDPATHINFO_MAXSIZE];
-    if (proc_pidpath(getpid(), self_path, sizeof(self_path)) < 0) {
-        fprintf(stderr, "error: failed to obtain path from pid\n");
-        return 127;
-    }
-    argv[0] = self_path;
-    
-    char executable_path[PATH_MAX] = {0};
-    strncpy(executable_path, "/Applications/Glyphs.app/Contents/MacOS/", PATH_MAX);
-    strncat(executable_path, basename((char *)argv[0]), PATH_MAX);
-    if (strncmp(argv[0], executable_path, PATH_MAX) == 0) {
-        // Seems to be launched inside the bundle; unlink the executable immediately.
-        unlink(executable_path);
-    } else {
-        // Create a hard link inside the application bundle and launch it again.
-        if (link(argv[0], executable_path) == 0) {
-            pid_t pid = fork();
-            if (pid == -1) {
-                fprintf(stderr, "error: failed to fork\n");
-                return 128;
-            } else if (pid > 0) {
-                int status;
-                waitpid(pid, &status, 0);
-                return WEXITSTATUS(status);
-            } else {
-                argv[0] = executable_path; // Rewrite argv[0] with the new path.
-                execv(executable_path, (char * const *)argv);
-                exit(EXIT_FAILURE);
-            }
+@implementation NSBundle (NSBundleAdditions)
+
++ (void)load {
+    // Swizzle + mainBundle to pretend as if it's launched from the inside of the bundle.
+    // Note that CFBundleGetMainBundle() still returns the original bundle - if you want
+    // to fix it, you may need to introduce another runtime function patching technique.
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        Class class = object_getClass(self);
+        SEL originalSelector = @selector(mainBundle);
+        SEL swizzledSelector = @selector(_mainBundle);
+        Method originalMethod = class_getClassMethod(class, originalSelector);
+        Method swizzledMethod = class_getClassMethod(class, swizzledSelector);
+        BOOL didAddMethod = class_addMethod(class, originalSelector, method_getImplementation(swizzledMethod), method_getTypeEncoding(swizzledMethod));
+        if (didAddMethod) {
+            class_replaceMethod(class, swizzledSelector, method_getImplementation(originalMethod), method_getTypeEncoding(originalMethod));
         } else {
-            fprintf(stderr, "error: failed to create link: ");
-            perror(NULL);
-            return 129;
+            method_exchangeImplementations(originalMethod, swizzledMethod);
         }
-    }
+    });
+}
+    
++ (NSBundle *)_mainBundle {
+    static dispatch_once_t once_;
+    static NSBundle *mainBundle = nil;
+    dispatch_once(&once_, ^{
+        mainBundle = [NSBundle bundleWithPath:@"/Applications/Glyphs.app"];
+    });
+    return mainBundle;
+}
+
+@end;
+
+int main(int argc, const char * argv[]) {
     // Provide a Python interpreter with some modules loaded using C API.
     @autoreleasepool {
         ProcessSerialNumber psn = {0, kCurrentProcess};

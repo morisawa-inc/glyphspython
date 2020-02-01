@@ -114,6 +114,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = E7B5EB3A1DA6136600FE2A66;
@@ -230,6 +231,7 @@
 		E7B5EB4B1DA6136600FE2A66 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = "/Application/Glyphs.app/Contents/MacOS /Application/Glyphs.app/Contents/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -238,6 +240,7 @@
 		E7B5EB4C1DA6136600FE2A66 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LD_RUNPATH_SEARCH_PATHS = "/Application/Glyphs.app/Contents/MacOS /Application/Glyphs.app/Contents/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
