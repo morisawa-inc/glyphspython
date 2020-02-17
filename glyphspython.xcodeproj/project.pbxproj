@@ -24,6 +24,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E710D39E23FA72870061ED8C /* glyphspython.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = glyphspython.entitlements; sourceTree = "<group>"; };
 		E7B5EB431DA6136600FE2A66 /* glyphspython */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = glyphspython; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7B5EB461DA6136600FE2A66 /* glyphspython.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = glyphspython.m; sourceTree = "<group>"; };
 		E7B5EB4E1DA61AE700FE2A66 /* Python.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Python.framework; path = System/Library/Frameworks/Python.framework; sourceTree = SDKROOT; };
@@ -61,6 +62,7 @@
 		E7B5EB451DA6136600FE2A66 /* glyphspython */ = {
 			isa = PBXGroup;
 			children = (
+				E710D39E23FA72870061ED8C /* glyphspython.entitlements */,
 				E7B5EB461DA6136600FE2A66 /* glyphspython.m */,
 			);
 			path = glyphspython;
@@ -231,6 +233,8 @@
 		E7B5EB4B1DA6136600FE2A66 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = glyphspython/glyphspython.entitlements;
+				ENABLE_HARDENED_RUNTIME = YES;
 				LD_RUNPATH_SEARCH_PATHS = "/Application/Glyphs.app/Contents/MacOS /Application/Glyphs.app/Contents/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -240,6 +244,8 @@
 		E7B5EB4C1DA6136600FE2A66 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = glyphspython/glyphspython.entitlements;
+				ENABLE_HARDENED_RUNTIME = YES;
 				LD_RUNPATH_SEARCH_PATHS = "/Application/Glyphs.app/Contents/MacOS /Application/Glyphs.app/Contents/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				PRODUCT_NAME = "$(TARGET_NAME)";
