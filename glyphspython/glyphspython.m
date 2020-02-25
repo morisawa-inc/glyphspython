@@ -25,6 +25,9 @@
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
 
+const CFStringRef kGlyphsAppIdentifier = CFSTR("com.GeorgSeifert.Glyphs2");
+NSString * const GlyphsAppIdentifier = (__bridge NSString *)kGlyphsAppIdentifier;
+
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 @property (nonatomic, readonly) NSArray<NSBundle *> *filterBundles;
 @property (nonatomic, readonly) NSArray<NSBundle *> *fileFormatBundles;
@@ -102,13 +105,26 @@
 
 @end
 
-@interface NSApplication (GSApplicationAdditions)
-+ (NSApplication *)sharedApplication;
-@end
-
 @implementation NSApplication (GSApplicationAdditions)
 
-+ (NSApplication *)sharedApplication {
++ (void)load {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        Class class = object_getClass(self);
+        SEL originalSelector = @selector(sharedApplication);
+        SEL swizzledSelector = @selector(_sharedApplication);
+        Method originalMethod = class_getClassMethod(class, originalSelector);
+        Method swizzledMethod = class_getClassMethod(class, swizzledSelector);
+        BOOL didAddMethod = class_addMethod(class, originalSelector, method_getImplementation(swizzledMethod), method_getTypeEncoding(swizzledMethod));
+        if (didAddMethod) {
+            class_replaceMethod(class, swizzledSelector, method_getImplementation(originalMethod), method_getTypeEncoding(originalMethod));
+        } else {
+            method_exchangeImplementations(originalMethod, swizzledMethod);
+        }
+    });
+}
+
++ (NSApplication *)_sharedApplication {
     // A dirty hack to replace the global 'Glyphs' object with GSApplication instead of NSApplication.
     static dispatch_once_t once;
     static NSApplication *sharedInstance = nil;
@@ -149,17 +165,42 @@
     
 @end
 
-@implementation NSBundle (NSBundleAdditions)
 
+@implementation NSProcessInfo (NSProcessInfoAdditions)
+    
 + (void)load {
-    // Swizzle + mainBundle to pretend as if it's launched from the inside of the bundle.
-    // Note that CFBundleGetMainBundle() still returns the original bundle - if you want
-    // to fix it, you may need to introduce another runtime function patching technique.
+    // Swizzle - arguments to pretend as if it's launched from the bundle.
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        Class class = [self class];
+        SEL originalSelector = @selector(arguments);
+        SEL swizzledSelector = @selector(_arguments);
+        Method originalMethod = class_getInstanceMethod(class, originalSelector);
+        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+        BOOL didAddMethod = class_addMethod(class, originalSelector, method_getImplementation(swizzledMethod), method_getTypeEncoding(swizzledMethod));
+        if (didAddMethod) {
+            class_replaceMethod(class, swizzledSelector, method_getImplementation(originalMethod), method_getTypeEncoding(originalMethod));
+        } else {
+            method_exchangeImplementations(originalMethod, swizzledMethod);
+        }
+    });
+}
+    
+- (NSArray<NSString *> *)_arguments {
+    return @[[[NSBundle mainBundle] executablePath]];
+}
+    
+@end
+
+@implementation NSUserDefaults (NSUserDefaultsAdditions)
+    
++ (void)load {
+    // Swizzle + standardUserDefault: with our custom implementation.
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         Class class = object_getClass(self);
-        SEL originalSelector = @selector(mainBundle);
-        SEL swizzledSelector = @selector(_mainBundle);
+        SEL originalSelector = @selector(standardUserDefaults);
+        SEL swizzledSelector = @selector(_standardUserDefaults);
         Method originalMethod = class_getClassMethod(class, originalSelector);
         Method swizzledMethod = class_getClassMethod(class, swizzledSelector);
         BOOL didAddMethod = class_addMethod(class, originalSelector, method_getImplementation(swizzledMethod), method_getTypeEncoding(swizzledMethod));
@@ -171,25 +212,56 @@
     });
 }
     
-+ (NSBundle *)_mainBundle {
-    static dispatch_once_t once_;
-    static NSBundle *mainBundle = nil;
-    dispatch_once(&once_, ^{
-        mainBundle = [NSBundle bundleWithPath:[[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:@"com.GeorgSeifert.Glyphs2"]];
-    });
-    return mainBundle;
++ (id)_standardUserDefaults {
+    // Here we explicitly set the application identifier via ivar so that it should be passed to CFPreference functions.
+    NSUserDefaults *userDefaults = [[self class] _standardUserDefaults];
+    Class class = object_getClass(userDefaults);
+    Ivar identifier = class_getInstanceVariable(class, "_identifier_");
+    object_setIvarWithStrongDefault(userDefaults, identifier, (__bridge id)kGlyphsAppIdentifier);
+    return userDefaults;
 }
 
-@end;
+@end
+
+#pragma mark -
+
+#import "mach_override.h"
+#import <mach-o/dyld.h>
+
+CFBundleRef GlyphsPythonMainBundle = NULL;
+CFBundleRef (*origCFBundleGetMainBundle)(void);
+CFBundleRef GlyphsPythonCFBundleGetMainBundle(void) {
+    return GlyphsPythonMainBundle;
+}
+
+CFStringRef GlyphsPythonMainBundleExecutablePath = NULL;
+int (*origNSGetExecutablePath)(char* buf, uint32_t* bufsize);
+int GlyphsPythonNSGetExecutablePath(char* buf, uint32_t* bufsize) {
+    return CFStringGetFileSystemRepresentation(GlyphsPythonMainBundleExecutablePath, buf, *bufsize) ? 0 : -1;
+}
+
+#pragma mark -
 
 int main(int argc, const char * argv[]) {
     // Provide a Python interpreter with some modules loaded using C API.
+    int result = 0;
     @autoreleasepool {
+        // Replace the exposed main bundle. As + [NSBundle mainBundle] calls CFBundleGetMainBundle() inside its implementation, the latter
+        // Note that _NSGetExecutablePath() is also swizzled based on the assumption thCFPreferences resolves kCFPreferencesCurrentApplication based on
+        // that value, but it doesn't seem to have any effects so far. Making sure to set up NSBundle/CFBundle/NSUserDefaults/CFPreferences is
+        // especially important for Glyphs because it obtains the license information based on them and otherwise documents cannot be saved.
+        // Note that mach_override is bundled with the project to override the builtin C functions.
+        GlyphsPythonMainBundle = CFBundleCreate(NULL, (__bridge CFURLRef)[NSURL fileURLWithPath:[[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:GlyphsAppIdentifier]]);
+        CFURLRef URL = CFBundleCopyExecutableURL(GlyphsPythonMainBundle);
+        GlyphsPythonMainBundleExecutablePath = CFURLCopyPath(URL);
+        mach_override_ptr((void *)CFBundleGetMainBundle, (void *)GlyphsPythonCFBundleGetMainBundle, (void **)&origCFBundleGetMainBundle);
+        mach_override_ptr((void *)_NSGetExecutablePath, (void *)GlyphsPythonNSGetExecutablePath, (void **)&origNSGetExecutablePath);
+        CFRelease(URL);
+        
         ProcessSerialNumber psn = {0, kCurrentProcess};
         TransformProcessType(&psn, kProcessTransformToUIElementApplication);
-        
         void *handle = dlopen([[[NSBundle mainBundle] executablePath] fileSystemRepresentation], RTLD_LOCAL);
-        {
+        @autoreleasepool {
             [NSApplication sharedApplication];
             NSString *glyphsCoreFrameworkPath = [[[NSBundle mainBundle] sharedFrameworksPath] stringByAppendingPathComponent:@"GlyphsCore.framework"]; // @"/Applications/Glyphs.app/Frameworks/GlyphsCore.framework"
             [[NSBundle bundleWithPath:glyphsCoreFrameworkPath] load];
@@ -205,10 +277,10 @@ int main(int argc, const char * argv[]) {
                                       @"sys.path.append(r'''%@''');"
                                       @"globals().update(__import__('GlyphsApp', globals(), locals()).__dict__);"
                                       @"globals()['__name__'] = '__main__';", scriptsPath] fileSystemRepresentation], NULL);
-            Py_Main(argc, (char **)argv);
+            result = Py_Main(argc, (char **)argv);
             Py_Finalize();
         }
         dlclose(handle);
     }
-    return 0;
+    return result;
 }

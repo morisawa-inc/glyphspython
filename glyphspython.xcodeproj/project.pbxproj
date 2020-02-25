@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E710D3B623FD2C820061ED8C /* mach_override.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3A323FD2C7C0061ED8C /* mach_override.c */; };
+		E710D3B723FD2C8B0061ED8C /* itab.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3A923FD2C7C0061ED8C /* itab.c */; };
+		E710D3B823FD2C8B0061ED8C /* udis86.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3AD23FD2C7C0061ED8C /* udis86.c */; };
+		E710D3B923FD2C8B0061ED8C /* decode.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3AE23FD2C7C0061ED8C /* decode.c */; };
+		E710D3BA23FD2C8B0061ED8C /* syn-att.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3AF23FD2C7C0061ED8C /* syn-att.c */; };
+		E710D3BB23FD2C8B0061ED8C /* input.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3B123FD2C7C0061ED8C /* input.c */; };
+		E710D3BC23FD2C8B0061ED8C /* syn-intel.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3B223FD2C7C0061ED8C /* syn-intel.c */; };
+		E710D3BD23FD2C8B0061ED8C /* syn.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3B423FD2C7C0061ED8C /* syn.c */; settings = {COMPILER_FLAGS = "-Wno-return-type"; }; };
 		E7B5EB471DA6136600FE2A66 /* glyphspython.m in Sources */ = {isa = PBXBuildFile; fileRef = E7B5EB461DA6136600FE2A66 /* glyphspython.m */; };
 		E7B5EB4F1DA61AE700FE2A66 /* Python.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E7B5EB4E1DA61AE700FE2A66 /* Python.framework */; };
 /* End PBXBuildFile section */
@@ -25,6 +33,23 @@
 
 /* Begin PBXFileReference section */
 		E710D39E23FA72870061ED8C /* glyphspython.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = glyphspython.entitlements; sourceTree = "<group>"; };
+		E710D3A323FD2C7C0061ED8C /* mach_override.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mach_override.c; sourceTree = "<group>"; };
+		E710D3A523FD2C7C0061ED8C /* mach_override.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mach_override.h; sourceTree = "<group>"; };
+		E710D3A623FD2C7C0061ED8C /* udis86.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = udis86.h; sourceTree = "<group>"; };
+		E710D3A823FD2C7C0061ED8C /* input.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = input.h; sourceTree = "<group>"; };
+		E710D3A923FD2C7C0061ED8C /* itab.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = itab.c; sourceTree = "<group>"; };
+		E710D3AA23FD2C7C0061ED8C /* udint.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = udint.h; sourceTree = "<group>"; };
+		E710D3AB23FD2C7C0061ED8C /* types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = types.h; sourceTree = "<group>"; };
+		E710D3AC23FD2C7C0061ED8C /* syn.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = syn.h; sourceTree = "<group>"; };
+		E710D3AD23FD2C7C0061ED8C /* udis86.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = udis86.c; sourceTree = "<group>"; };
+		E710D3AE23FD2C7C0061ED8C /* decode.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = decode.c; sourceTree = "<group>"; };
+		E710D3AF23FD2C7C0061ED8C /* syn-att.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "syn-att.c"; sourceTree = "<group>"; };
+		E710D3B023FD2C7C0061ED8C /* itab.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = itab.h; sourceTree = "<group>"; };
+		E710D3B123FD2C7C0061ED8C /* input.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = input.c; sourceTree = "<group>"; };
+		E710D3B223FD2C7C0061ED8C /* syn-intel.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "syn-intel.c"; sourceTree = "<group>"; };
+		E710D3B323FD2C7C0061ED8C /* extern.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = extern.h; sourceTree = "<group>"; };
+		E710D3B423FD2C7C0061ED8C /* syn.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = syn.c; sourceTree = "<group>"; };
+		E710D3B523FD2C7C0061ED8C /* decode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = decode.h; sourceTree = "<group>"; };
 		E7B5EB431DA6136600FE2A66 /* glyphspython */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = glyphspython; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7B5EB461DA6136600FE2A66 /* glyphspython.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = glyphspython.m; sourceTree = "<group>"; };
 		E7B5EB4E1DA61AE700FE2A66 /* Python.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Python.framework; path = System/Library/Frameworks/Python.framework; sourceTree = SDKROOT; };
@@ -42,6 +67,38 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		E710D3A223FD2C7C0061ED8C /* mach_override */ = {
+			isa = PBXGroup;
+			children = (
+				E710D3A323FD2C7C0061ED8C /* mach_override.c */,
+				E710D3A523FD2C7C0061ED8C /* mach_override.h */,
+				E710D3A623FD2C7C0061ED8C /* udis86.h */,
+				E710D3A723FD2C7C0061ED8C /* libudis86 */,
+			);
+			path = mach_override;
+			sourceTree = "<group>";
+		};
+		E710D3A723FD2C7C0061ED8C /* libudis86 */ = {
+			isa = PBXGroup;
+			children = (
+				E710D3A823FD2C7C0061ED8C /* input.h */,
+				E710D3A923FD2C7C0061ED8C /* itab.c */,
+				E710D3AA23FD2C7C0061ED8C /* udint.h */,
+				E710D3AB23FD2C7C0061ED8C /* types.h */,
+				E710D3AC23FD2C7C0061ED8C /* syn.h */,
+				E710D3AD23FD2C7C0061ED8C /* udis86.c */,
+				E710D3AE23FD2C7C0061ED8C /* decode.c */,
+				E710D3AF23FD2C7C0061ED8C /* syn-att.c */,
+				E710D3B023FD2C7C0061ED8C /* itab.h */,
+				E710D3B123FD2C7C0061ED8C /* input.c */,
+				E710D3B223FD2C7C0061ED8C /* syn-intel.c */,
+				E710D3B323FD2C7C0061ED8C /* extern.h */,
+				E710D3B423FD2C7C0061ED8C /* syn.c */,
+				E710D3B523FD2C7C0061ED8C /* decode.h */,
+			);
+			path = libudis86;
+			sourceTree = "<group>";
+		};
 		E7B5EB3A1DA6136600FE2A66 = {
 			isa = PBXGroup;
 			children = (
@@ -62,6 +119,7 @@
 		E7B5EB451DA6136600FE2A66 /* glyphspython */ = {
 			isa = PBXGroup;
 			children = (
+				E710D3A223FD2C7C0061ED8C /* mach_override */,
 				E710D39E23FA72870061ED8C /* glyphspython.entitlements */,
 				E7B5EB461DA6136600FE2A66 /* glyphspython.m */,
 			);
@@ -134,7 +192,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E710D3B823FD2C8B0061ED8C /* udis86.c in Sources */,
+				E710D3BB23FD2C8B0061ED8C /* input.c in Sources */,
+				E710D3B623FD2C820061ED8C /* mach_override.c in Sources */,
+				E710D3B723FD2C8B0061ED8C /* itab.c in Sources */,
+				E710D3B923FD2C8B0061ED8C /* decode.c in Sources */,
+				E710D3BA23FD2C8B0061ED8C /* syn-att.c in Sources */,
+				E710D3BD23FD2C8B0061ED8C /* syn.c in Sources */,
 				E7B5EB471DA6136600FE2A66 /* glyphspython.m in Sources */,
+				E710D3BC23FD2C8B0061ED8C /* syn-intel.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
