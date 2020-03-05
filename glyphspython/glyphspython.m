@@ -242,9 +242,31 @@ int GlyphsPythonNSGetExecutablePath(char* buf, uint32_t* bufsize) {
 
 #pragma mark -
 
-int main(int argc, const char * argv[]) {
+@protocol GSInstallPluginDocumentProtocol <NSObject>
+- (id)initWithContentsOfURL:(NSURL *)URL ofType:(NSString *)type error:(NSError **)error;
+@end
+
+#pragma mark -
+
+static int consume_register_licnse_option_if_available(int *argc, const char * argv[], NSString **path) {
+    if (*argc >= 3) {
+        if (strncmp(argv[1], "--register-license", strlen("--register-license")) == 0) {
+            if (path) *path = [[[NSFileManager alloc] init] stringWithFileSystemRepresentation:argv[2] length:strlen(argv[2])];
+            if (*argc > 3) memmove(&(argv[1]), &(argv[3]), *argc - 1 - 2);
+            *argc = *argc - 2;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int main(int _argc, const char * _argv[]) {
     // Provide a Python interpreter with some modules loaded using C API.
     int result = 0;
+    //
+    int argc = _argc;
+    const char **argv = _argv;
+    //
     @autoreleasepool {
         // Replace the exposed main bundle. As + [NSBundle mainBundle] calls CFBundleGetMainBundle() inside its implementation, the latter
         // Note that _NSGetExecutablePath() is also swizzled based on the assumption thCFPreferences resolves kCFPreferencesCurrentApplication based on
@@ -263,22 +285,45 @@ int main(int argc, const char * argv[]) {
         void *handle = dlopen([[[NSBundle mainBundle] executablePath] fileSystemRepresentation], RTLD_LOCAL);
         @autoreleasepool {
             [NSApplication sharedApplication];
-            NSString *glyphsCoreFrameworkPath = [[[NSBundle mainBundle] sharedFrameworksPath] stringByAppendingPathComponent:@"GlyphsCore.framework"]; // @"/Applications/Glyphs.app/Frameworks/GlyphsCore.framework"
-            [[NSBundle bundleWithPath:glyphsCoreFrameworkPath] load];
-            if (!NSClassFromString(@"GSFont")) {
-                fprintf(stderr, "error: failed to load frameworks\n");
-                dlclose(handle);
-                return 132;
+            if (result == 0) {
+                NSString *glyphsCoreFrameworkPath = [[[NSBundle mainBundle] sharedFrameworksPath] stringByAppendingPathComponent:@"GlyphsCore.framework"]; // @"/Applications/Glyphs.app/Frameworks/GlyphsCore.framework"
+                [[NSBundle bundleWithPath:glyphsCoreFrameworkPath] load];
+                if (!NSClassFromString(@"GSFont")) {
+                    fprintf(stderr, "error: failed to load frameworks\n");
+                    result = 132;
+                }
             }
-            Py_Initialize();
-            NSString *scriptsPath = [[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Scripts"]; // @"/Applications/Glyphs.app/Contents/Scripts";
-            PyRun_SimpleStringFlags([[NSString stringWithFormat:
-                                      @"import objc, sys;"
-                                      @"sys.path.append(r'''%@''');"
-                                      @"globals().update(__import__('GlyphsApp', globals(), locals()).__dict__);"
-                                      @"globals()['__name__'] = '__main__';", scriptsPath] fileSystemRepresentation], NULL);
-            result = Py_Main(argc, (char **)argv);
-            Py_Finalize();
+            if (result == 0) {
+                NSString *licensePath = nil;
+                if (consume_register_licnse_option_if_available(&argc, argv, &licensePath)) {
+                    if ([[[NSFileManager alloc] init] fileExistsAtPath:licensePath]) {
+                        NSError *error = nil;
+                        NSURL *licenseURL = [NSURL fileURLWithPath:licensePath relativeToURL:nil];
+                        BOOL shouldDisableUI = [[NSUserDefaults standardUserDefaults] boolForKey:@"disableUI"];
+                        [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"disableUI"];
+                        [[(id<GSInstallPluginDocumentProtocol>)[NSClassFromString(@"GSInstallPluginDocument") alloc] initWithContentsOfURL:licenseURL ofType:@"com.glyphsapp.glyphs2license" error:&error] description];
+                        [[NSUserDefaults standardUserDefaults] setBool:shouldDisableUI forKey:@"disableUI"];
+                        if (error) {
+                            fprintf(stderr, "error: failed to register license\n");
+                            result = 132;
+                        }
+                    } else {
+                        fprintf(stderr, "error: no license file found at given path\n");
+                        result = 1;
+                    }
+                }
+            }
+            if (result == 0) {
+                Py_Initialize();
+                NSString *scriptsPath = [[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Scripts"]; // @"/Applications/Glyphs.app/Contents/Scripts";
+                PyRun_SimpleStringFlags([[NSString stringWithFormat:
+                                          @"import objc, sys;"
+                                          @"sys.path.append(r'''%@''');"
+                                          @"globals().update(__import__('GlyphsApp', globals(), locals()).__dict__);"
+                                          @"globals()['__name__'] = '__main__';", scriptsPath] fileSystemRepresentation], NULL);
+                result = Py_Main(argc, (char **)argv);
+                Py_Finalize();
+            }
         }
         dlclose(handle);
     }
