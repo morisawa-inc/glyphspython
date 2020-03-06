@@ -293,6 +293,7 @@ int main(int _argc, const char * _argv[]) {
                     result = 132;
                 }
             }
+            bool has_consumed_register_license_option = false;
             if (result == 0) {
                 NSString *licensePath = nil;
                 if (consume_register_license_option_if_available(&argc, argv, &licensePath)) {
@@ -311,9 +312,10 @@ int main(int _argc, const char * _argv[]) {
                         fprintf(stderr, "error: no license file found at given path\n");
                         result = 1;
                     }
+                    has_consumed_register_license_option = true;
                 }
             }
-            if (result == 0) {
+            if (result == 0 && !has_consumed_register_license_option) {
                 Py_Initialize();
                 NSString *scriptsPath = [[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Scripts"]; // @"/Applications/Glyphs.app/Contents/Scripts";
                 PyRun_SimpleStringFlags([[NSString stringWithFormat:
