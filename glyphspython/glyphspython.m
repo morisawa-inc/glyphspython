@@ -248,7 +248,7 @@ int GlyphsPythonNSGetExecutablePath(char* buf, uint32_t* bufsize) {
 
 #pragma mark -
 
-static int consume_register_licnse_option_if_available(int *argc, const char * argv[], NSString **path) {
+static int consume_register_license_option_if_available(int *argc, const char * argv[], NSString **path) {
     if (*argc >= 3) {
         if (strncmp(argv[1], "--register-license", strlen("--register-license")) == 0) {
             if (path) *path = [[[NSFileManager alloc] init] stringWithFileSystemRepresentation:argv[2] length:strlen(argv[2])];
@@ -295,7 +295,7 @@ int main(int _argc, const char * _argv[]) {
             }
             if (result == 0) {
                 NSString *licensePath = nil;
-                if (consume_register_licnse_option_if_available(&argc, argv, &licensePath)) {
+                if (consume_register_license_option_if_available(&argc, argv, &licensePath)) {
                     if ([[[NSFileManager alloc] init] fileExistsAtPath:licensePath]) {
                         NSError *error = nil;
                         NSURL *licenseURL = [NSURL fileURLWithPath:licensePath relativeToURL:nil];
