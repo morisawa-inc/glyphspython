@@ -260,6 +260,129 @@ static int consume_register_license_option_if_available(int *argc, const char * 
     return 0;
 }
 
+#pragma mark -
+
+@interface GPInstalledApplication : NSObject <NSCopying>
+
+@property (nonatomic, readonly) NSString *path;
+@property (nonatomic, readonly) NSString *displayVersion;
+@property (nonatomic, readonly) NSString *versionString;
+@property (nonatomic, readonly) NSString *bundleIdentifier;
+
++ (NSArray<GPInstalledApplication *> *)applicationsWithBundleIdentifier:(NSString *)aBundleIdentifier;
++ (NSArray<GPInstalledApplication *> *)allGlyphsAppInstances;
+
+- (instancetype)initWithPath:(NSString *)path displayVersion:(NSString *)displayVersion versionString:(NSString *)versionString bundleIdentifier:(NSString *)bundleIdentifier;
+
+- (NSString *)fullVersionString;
+
+@end
+
+@implementation GPInstalledApplication
+
++ (NSArray<GPInstalledApplication *> *)applicationsWithBundleIdentifier:(NSString *)aBundleIdentifier {
+    NSRegularExpression *separatorExpression = [NSRegularExpression regularExpressionWithPattern:@"^-{4,}$" options:0 error:nil];
+    NSRegularExpression *pathExpression = [NSRegularExpression regularExpressionWithPattern:@"^\\s*path:\\s*(.*)$" options:0 error:nil];
+    NSRegularExpression *displayVersionExpression = [NSRegularExpression regularExpressionWithPattern:@"^\\s*displayVersion:?\\s+(.*)$" options:0 error:nil];
+    NSRegularExpression *versionStringExpression = [NSRegularExpression regularExpressionWithPattern:@"^\\s*versionString:\\s*(.*)$" options:0 error:nil];
+    NSRegularExpression *bundleIdentifierExpression = [NSRegularExpression regularExpressionWithPattern:@"^\\s*identifier:\\s*(.*?)(?:\\s*\\(0x[0-9a-f]+\\))?$" options:0 error:nil];
+    NSTask *task = [[NSTask alloc] init];
+    if (@available(macOS 10.13, *)) {
+        [task setExecutableURL:[NSURL fileURLWithPath:@"/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"]];
+    } else {
+        [task setLaunchPath:@"/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"];
+    }
+    [task setArguments:@[@"-dump"]];
+    [task setStandardOutput:[NSPipe pipe]];
+    [task launch];
+    
+    NSMutableArray <GPInstalledApplication *> *mutableApplications = [[NSMutableArray alloc] initWithCapacity:0];
+    NSFileHandle *fileHandle = [[task standardOutput] fileHandleForReading];
+    FILE *fp = fdopen([fileHandle fileDescriptor], "r");
+    char *bytesForLine = NULL;
+    size_t numberOfBytesForLine = 0;
+    NSString *path = nil;
+    NSString *displayVersion = nil;
+    NSString *versionString = nil;
+    NSString *bundleIdentifier = nil;
+    while ((bytesForLine = fgetln(fp, &numberOfBytesForLine))) {
+        NSTextCheckingResult *result = nil;
+        NSString *lineString = [[NSString alloc] initWithBytesNoCopy:bytesForLine length:numberOfBytesForLine encoding:NSUTF8StringEncoding freeWhenDone:NO];
+        if (lineString) {
+            if ((result = [separatorExpression firstMatchInString:lineString options:0 range:NSMakeRange(0, [lineString length])])) {
+                path = nil;
+                displayVersion = nil;
+                versionString = nil;
+                bundleIdentifier = nil;
+            } else if ((result = [pathExpression firstMatchInString:lineString options:0 range:NSMakeRange(0, [lineString length])])) {
+                path = [lineString substringWithRange:[result rangeAtIndex:1]];
+            } else if ((result = [displayVersionExpression firstMatchInString:lineString options:0 range:NSMakeRange(0, [lineString length])])) {
+                displayVersion = [lineString substringWithRange:[result rangeAtIndex:1]];
+            } else if ((result = [versionStringExpression firstMatchInString:lineString options:0 range:NSMakeRange(0, [lineString length])])) {
+                versionString = [lineString substringWithRange:[result rangeAtIndex:1]];
+            } else if ((result = [bundleIdentifierExpression firstMatchInString:lineString options:0 range:NSMakeRange(0, [lineString length])])) {
+                bundleIdentifier = [lineString substringWithRange:[result rangeAtIndex:1]];
+            }
+            if (path && displayVersion && versionString && bundleIdentifier) {
+                if ([bundleIdentifier isEqualToString:aBundleIdentifier]) {
+                    [mutableApplications addObject:[[GPInstalledApplication alloc] initWithPath:path displayVersion:displayVersion versionString:versionString bundleIdentifier:bundleIdentifier]];
+                }
+                path = nil;
+                displayVersion = nil;
+                versionString = nil;
+                bundleIdentifier = nil;
+            }
+        }
+    }
+    return [mutableApplications count] > 0 ? [mutableApplications copy] : nil;
+}
+
++ (NSArray<GPInstalledApplication *> *)allGlyphsAppInstances {
+    NSMutableDictionary<NSString *, GPInstalledApplication *> *mutableDictionary = [[NSMutableDictionary alloc] initWithCapacity:0];
+    for (GPInstalledApplication *application in [GPInstalledApplication applicationsWithBundleIdentifier:GlyphsAppIdentifier]) {
+        if ([[application path] hasPrefix:@"/"] && [[[[application path] pathComponents] objectAtIndex:1] isEqualToString:@"Applications"]) {
+            if (![mutableDictionary objectForKey:[application fullVersionString]]) {
+                [mutableDictionary setObject:application forKey:[application fullVersionString]];
+            }
+        }
+    }
+    return [[mutableDictionary allValues] sortedArrayUsingComparator:^NSComparisonResult(GPInstalledApplication *obj1, GPInstalledApplication *obj2) {
+        NSComparisonResult result = [[obj1 fullVersionString] compare:[obj2 fullVersionString] options:NSNumericSearch];
+        if (result == NSOrderedAscending) return NSOrderedDescending;
+        if (result == NSOrderedDescending) return NSOrderedAscending;
+        return result;
+    }];
+}
+
+- (instancetype)initWithPath:(NSString *)path displayVersion:(NSString *)displayVersion versionString:(NSString *)versionString bundleIdentifier:(NSString *)bundleIdentifier {
+    if ((self = [self init])) {
+        _path = [path copy];
+        _displayVersion = [displayVersion copy];
+        _versionString = [versionString copy];
+        _bundleIdentifier = [bundleIdentifier copy];
+    }
+    return self;
+}
+
+- (NSString *)fullVersionString {
+    return [NSString stringWithFormat:@"%@ (%@)", _displayVersion, _versionString];
+}
+
+- (instancetype)copyWithZone:(NSZone *)zone {
+    return self;
+}
+
+@end
+
+static int list_installed_glyphs_versions(void) {
+    BOOL hasInstalled = NO;
+    for (GPInstalledApplication *application in [GPInstalledApplication allGlyphsAppInstances]) {
+        fprintf(stdout, "%s\t%s\n", [[application fullVersionString] fileSystemRepresentation], [[application path] fileSystemRepresentation]);
+        hasInstalled = YES;
+    }
+    return hasInstalled ? 0 : 1;
+}
+
 int main(int _argc, const char * _argv[]) {
     // Provide a Python interpreter with some modules loaded using C API.
     int result = 0;
@@ -268,21 +391,86 @@ int main(int _argc, const char * _argv[]) {
     const char **argv = _argv;
     //
     @autoreleasepool {
+        // List installed glyphs versions if the '--list-verions' option is given.
+        if (argc > 1 && strncmp(argv[1], "--list-versions", strlen("--list-versions")) == 0) {
+            return list_installed_glyphs_versions();
+        }
+        // Find the appropriate bundle if the corresponding environment variable is given.
+        NSString *pathForGlyphsApp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:GlyphsAppIdentifier];
+        if (getenv("GLYPHSAPP_PATH")) {
+            pathForGlyphsApp = [[NSString alloc] initWithCString:getenv("GLYPHSAPP_PATH") encoding:NSUTF8StringEncoding];
+        }
         // Replace the exposed main bundle. As + [NSBundle mainBundle] calls CFBundleGetMainBundle() inside its implementation, the latter
         // Note that _NSGetExecutablePath() is also swizzled based on the assumption thCFPreferences resolves kCFPreferencesCurrentApplication based on
         // that value, but it doesn't seem to have any effects so far. Making sure to set up NSBundle/CFBundle/NSUserDefaults/CFPreferences is
         // especially important for Glyphs because it obtains the license information based on them and otherwise documents cannot be saved.
         // Note that mach_override is bundled with the project to override the builtin C functions.
-        GlyphsPythonMainBundle = CFBundleCreate(NULL, (__bridge CFURLRef)[NSURL fileURLWithPath:[[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:GlyphsAppIdentifier]]);
+        GlyphsPythonMainBundle = CFBundleCreate(NULL, (__bridge CFURLRef)[NSURL fileURLWithPath:pathForGlyphsApp]);
         CFURLRef URL = CFBundleCopyExecutableURL(GlyphsPythonMainBundle);
-        GlyphsPythonMainBundleExecutablePath = CFURLCopyPath(URL);
+        CFStringRef percentEscapedPath = CFURLCopyPath(URL);
+        GlyphsPythonMainBundleExecutablePath = CFURLCreateStringByReplacingPercentEscapesUsingEncoding(NULL, percentEscapedPath, CFSTR(""), kCFStringEncodingUTF8);
+        CFRelease(percentEscapedPath);
+        if (![(__bridge NSString *)GlyphsPythonMainBundleExecutablePath hasSuffix:@"Glyphs"]) {
+            NSString *alternativeExecutablePath = [[(__bridge NSString *)GlyphsPythonMainBundleExecutablePath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"Glyphs"];
+            CFRelease(GlyphsPythonMainBundleExecutablePath);
+            GlyphsPythonMainBundleExecutablePath = CFStringCreateCopy(NULL, (__bridge CFStringRef)alternativeExecutablePath);
+        }
         mach_override_ptr((void *)CFBundleGetMainBundle, (void *)GlyphsPythonCFBundleGetMainBundle, (void **)&origCFBundleGetMainBundle);
         mach_override_ptr((void *)_NSGetExecutablePath, (void *)GlyphsPythonNSGetExecutablePath, (void **)&origNSGetExecutablePath);
         CFRelease(URL);
         
+        // Just found out that it still needs the relocation workaround when the version is less than 2.6.
+        // As most people won't care about the legacy versions anyway, I believe it doesn't mess up things so badly.
+        BOOL hasRelocated = NO;
+        if (CFBundleGetVersionNumber(GlyphsPythonMainBundle) < 1230) {
+            // Relocate the executable inside the application bundle.
+            // GlyphsCore.framework seems to have a dependency on GSFontTools.framework, and it tries to resolve
+            // the dylib based on the path @executable_path/../Frameworks/GSFontTools.framework/Versions/A/GSFontTools.
+            // Moreover, Glyphs.app apparently performs a self-integrity test on startup and silently aborts if you
+            // put any files inside the bundle. To compensate for the situation, we temporarily relocate the executable
+            // in /Application/Glyphs.app/Contents/MacOS and unlink it immediately when it is done.
+            char self_path[PROC_PIDPATHINFO_MAXSIZE];
+            if (proc_pidpath(getpid(), self_path, sizeof(self_path)) < 0) {
+                fprintf(stderr, "error: failed to obtain path from pid\n");
+                return 127;
+            }
+            argv[0] = self_path;
+            
+            char executable_path[PATH_MAX] = {0};
+            strncpy(executable_path, [pathForGlyphsApp fileSystemRepresentation], PATH_MAX);
+            strncat(executable_path, "/Contents/MacOS/", PATH_MAX);
+            strncat(executable_path, basename((char *)argv[0]), PATH_MAX);
+            if (strncmp(argv[0], executable_path, PATH_MAX) == 0) {
+                // Seems to be launched inside the bundle; unlink the executable immediately.
+                unlink(executable_path);
+            } else {
+                // Create a hard link inside the application bundle and launch it again.
+                if (link(argv[0], executable_path) == 0) {
+                    pid_t pid = fork();
+                    if (pid == -1) {
+                        fprintf(stderr, "error: failed to fork\n");
+                        return 128;
+                    } else if (pid > 0) {
+                        int status;
+                        waitpid(pid, &status, 0);
+                        return WEXITSTATUS(status);
+                    } else {
+                        argv[0] = executable_path; // Rewrite argv[0] with the new path.
+                        execv(executable_path, (char * const *)argv);
+                        exit(EXIT_FAILURE);
+                    }
+                } else {
+                    fprintf(stderr, "error: failed to create link: ");
+                    perror(NULL);
+                    return 129;
+                }
+            }
+            hasRelocated = YES;
+        }
+        
         ProcessSerialNumber psn = {0, kCurrentProcess};
         TransformProcessType(&psn, kProcessTransformToUIElementApplication);
-        void *handle = dlopen([[[NSBundle mainBundle] executablePath] fileSystemRepresentation], RTLD_LOCAL);
+        void *handle = dlopen([(hasRelocated ? (__bridge NSString *)GlyphsPythonMainBundleExecutablePath : [[NSBundle mainBundle] executablePath]) fileSystemRepresentation], RTLD_LOCAL);
         @autoreleasepool {
             [NSApplication sharedApplication];
             if (result == 0) {
