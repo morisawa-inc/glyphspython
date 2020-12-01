@@ -507,10 +507,13 @@ int main(int _argc, const char * _argv[]) {
                 Py_Initialize();
                 NSString *scriptsPath = [[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Scripts"]; // @"/Applications/Glyphs.app/Contents/Scripts";
                 PyRun_SimpleStringFlags([[NSString stringWithFormat:
-                                          @"import objc, sys;"
-                                          @"sys.path.append(r'''%@''');"
-                                          @"globals().update(__import__('GlyphsApp', globals(), locals()).__dict__);"
-                                          @"globals()['__name__'] = '__main__';", scriptsPath] fileSystemRepresentation], NULL);
+                                          @"import sys\n"
+                                          @"sys.path.append(r'''%@''')\n"
+                                          @"import GlyphsApp\n"
+                                          @"import __builtin__\n"
+                                          @"for symbol in GlyphsApp.__all__:\n"
+                                          @"    setattr(__builtin__, symbol, getattr(GlyphsApp, symbol))\n"
+                                          @"globals()['__name__'] = '__main__'\n", scriptsPath] fileSystemRepresentation], NULL);
                 result = Py_Main(argc, (char **)argv);
                 Py_Finalize();
             }

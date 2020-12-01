@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		E710D3B623FD2C820061ED8C /* mach_override.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3A323FD2C7C0061ED8C /* mach_override.c */; };
 		E710D3B723FD2C8B0061ED8C /* itab.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3A923FD2C7C0061ED8C /* itab.c */; };
-		E710D3B823FD2C8B0061ED8C /* udis86.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3AD23FD2C7C0061ED8C /* udis86.c */; };
+		E710D3B823FD2C8B0061ED8C /* udis86.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3AD23FD2C7C0061ED8C /* udis86.c */; settings = {COMPILER_FLAGS = "-D HAVE_STRING_H=1"; }; };
 		E710D3B923FD2C8B0061ED8C /* decode.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3AE23FD2C7C0061ED8C /* decode.c */; };
 		E710D3BA23FD2C8B0061ED8C /* syn-att.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3AF23FD2C7C0061ED8C /* syn-att.c */; };
 		E710D3BB23FD2C8B0061ED8C /* input.c in Sources */ = {isa = PBXBuildFile; fileRef = E710D3B123FD2C7C0061ED8C /* input.c */; };
