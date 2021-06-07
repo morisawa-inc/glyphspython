@@ -505,9 +505,10 @@ int main(int _argc, const char * _argv[]) {
                 } else {
                     // Load the built-in Python modules.
                     PyGILState_STATE state = PyGILState_Ensure();
-                    PyRun_SimpleStringFlags("from GlyphsApp import *\n"
-                                            "import GlyphsApp.plugins\n"
-                                            "import GlyphsApp.drawingTools\n", NULL);
+                    PyObject *builtins = PyEval_GetBuiltins();
+                    if (builtins) {
+                        PyDict_Merge(builtins, PyModule_GetDict(PyImport_ImportModule("GlyphsApp")), 1);
+                    }
                     PyGILState_Release(state);
                 }
             }
