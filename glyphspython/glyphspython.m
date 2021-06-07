@@ -40,26 +40,6 @@ NSString * const GlyphsAppIdentifier = (__bridge NSString *)kGlyphsAppIdentifier
 - (instancetype)init {
     if ((self = [super init])) {
         [self registerDefaults];
-        NSMutableArray *mutableFilterBundles = [[NSMutableArray alloc] initWithCapacity:0];
-        NSMutableArray *mutableFileFormatBundles = [[NSMutableArray alloc] initWithCapacity:0];
-        for (NSString *filename in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[[NSBundle mainBundle] builtInPlugInsPath] error:nil]) {
-            NSString *extension = [filename pathExtension];
-            if ([extension isEqualToString:@"glyphsFilter"]) {
-                NSBundle *bundle = [NSBundle bundleWithPath:[[[NSBundle mainBundle] builtInPlugInsPath] stringByAppendingPathComponent:filename]];
-                if (bundle) {
-                    [bundle load];
-                    [mutableFilterBundles addObject:bundle];
-                }
-            } else if ([extension isEqualToString:@"glyphsFileFormat"]) {
-                NSBundle *bundle = [NSBundle bundleWithPath:[[[NSBundle mainBundle] builtInPlugInsPath] stringByAppendingPathComponent:filename]];
-                if (bundle) {
-                    [bundle load];
-                    [mutableFileFormatBundles addObject:bundle];
-                }
-            }
-        }
-        _filterBundles = [mutableFilterBundles copy];
-        _fileFormatBundles = [mutableFileFormatBundles copy];
     }
     return self;
 }
@@ -101,6 +81,36 @@ NSString * const GlyphsAppIdentifier = (__bridge NSString *)kGlyphsAppIdentifier
         @"supportsSmartGlyphs": @(YES),
         @"showBoundingBox": @(YES)
     }];
+}
+
+- (void)_loadAllPlugins {
+    NSMutableArray *mutableBundles = [[NSMutableArray alloc] initWithCapacity:0];
+    [mutableBundles addObjectsFromArray:[self _loadPluginsFromDirectoryAtPath:[[NSBundle mainBundle] builtInPlugInsPath]]];
+    [mutableBundles addObjectsFromArray:[self _loadPluginsFromDirectoryAtPath:[[[NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:@"Glyphs"] stringByAppendingPathComponent:@"Plugins"]]];
+    _filterBundles = [mutableBundles filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
+        return [evaluatedObject conformsToProtocol:NSProtocolFromString(@"GlyphsFilter")];
+    }]];
+    _filterBundles = [mutableBundles filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
+        return [evaluatedObject conformsToProtocol:NSProtocolFromString(@"GlyphsFileFormat")];
+    }]];
+}
+
+- (NSArray<NSBundle *> *)_loadPluginsFromDirectoryAtPath:(NSString *)aPath {
+    NSSet *validPluginExtensions = [NSSet setWithArray:@[@"glyphsFilter", @"glyphsFileFormat"]];
+    NSMutableArray *mutableBundles = [[NSMutableArray alloc] initWithCapacity:0];
+    for (NSString *filename in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:aPath error:nil]) {
+        NSString *extension = [filename pathExtension];
+        if ([validPluginExtensions containsObject:extension]) {
+            NSBundle *bundle = [NSBundle bundleWithPath:[aPath stringByAppendingPathComponent:filename]];
+            if (bundle) {
+                // Note that - [NSBundle principalClass] has a side effect to cause a code loading.
+                if ([bundle principalClass] && [bundle isLoaded]) {
+                    [mutableBundles addObject:bundle];
+                }
+            }
+        }
+    }
+    return [mutableBundles copy];
 }
 
 @end
@@ -468,6 +478,19 @@ int main(int _argc, const char * _argv[]) {
             hasRelocated = YES;
         }
         
+        // Make sure to init the Python interpreter before loading Glyphs.
+        Py_Initialize();
+        {
+            PyGILState_STATE state = PyGILState_Ensure();
+            PyObject *path = PySys_GetObject("path");
+            if (path) {
+                
+                PyList_Append(path, PyString_FromString([[NSFileManager defaultManager] fileSystemRepresentationWithPath:[[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Scripts"]]));
+                PyList_Append(path, PyString_FromString([[NSFileManager defaultManager] fileSystemRepresentationWithPath:[[[NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:@"Glyphs"] stringByAppendingPathComponent:@"Scripts"]]));
+            }
+            PyGILState_Release(state);
+        }
+        
         ProcessSerialNumber psn = {0, kCurrentProcess};
         TransformProcessType(&psn, kProcessTransformToUIElementApplication);
         void *handle = dlopen([(hasRelocated ? (__bridge NSString *)GlyphsPythonMainBundleExecutablePath : [[NSBundle mainBundle] executablePath]) fileSystemRepresentation], RTLD_LOCAL);
@@ -479,6 +502,13 @@ int main(int _argc, const char * _argv[]) {
                 if (!NSClassFromString(@"GSFont")) {
                     fprintf(stderr, "error: failed to load frameworks\n");
                     result = 132;
+                } else {
+                    // Load the built-in Python modules.
+                    PyGILState_STATE state = PyGILState_Ensure();
+                    PyRun_SimpleStringFlags("from GlyphsApp import *\n"
+                                            "import GlyphsApp.plugins\n"
+                                            "import GlyphsApp.drawingTools\n", NULL);
+                    PyGILState_Release(state);
                 }
             }
             bool has_consumed_register_license_option = false;
@@ -504,21 +534,24 @@ int main(int _argc, const char * _argv[]) {
                 }
             }
             if (result == 0 && !has_consumed_register_license_option) {
-                Py_Initialize();
-                NSString *scriptsPath = [[[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Scripts"]; // @"/Applications/Glyphs.app/Contents/Scripts";
-                PyRun_SimpleStringFlags([[NSString stringWithFormat:
-                                          @"import sys\n"
-                                          @"sys.path.append(r'''%@''')\n"
-                                          @"import GlyphsApp\n"
-                                          @"import __builtin__\n"
-                                          @"for symbol in GlyphsApp.__all__:\n"
-                                          @"    setattr(__builtin__, symbol, getattr(GlyphsApp, symbol))\n"
-                                          @"globals()['__name__'] = '__main__'\n", scriptsPath] fileSystemRepresentation], NULL);
-                result = Py_Main(argc, (char **)argv);
-                Py_Finalize();
+                [(AppDelegate *)[[NSApplication sharedApplication] delegate] _loadAllPlugins];
+                {
+                    // Note that PyGILState_Ensure and PyGILState_Release are needed after Python plugins are loaded.
+                    PyGILState_STATE state = PyGILState_Ensure();
+                    result = Py_Main(argc, (char **)argv);
+                    if (result == 0) {
+                        // Tries to supresse the following message, but not sure if it's correct to do so:
+                        //   Fatal Python error: auto-releasing thread-state, but no thread-state for this thread
+                        PyGILState_Release(state);
+                    }
+                }
             }
         }
         dlclose(handle);
+        
+        PyGILState_STATE state = PyGILState_Ensure();
+        Py_Finalize();
+        PyGILState_Release(state);
     }
     return result;
 }
