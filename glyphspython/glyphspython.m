@@ -28,11 +28,18 @@
 const CFStringRef kGlyphsAppIdentifier = CFSTR("com.GeorgSeifert.Glyphs2");
 NSString * const GlyphsAppIdentifier = (__bridge NSString *)kGlyphsAppIdentifier;
 
+@protocol GlyphsPlugin <NSObject>
+@property(readonly, nonatomic) unsigned long long interfaceVersion;
+- (void)loadPlugin;
+@end
+
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 @property (nonatomic, readonly) NSArray<NSBundle *> *filterBundles;
 @property (nonatomic, readonly) NSArray<NSBundle *> *fileFormatBundles;
 @property (nonatomic, readonly) NSArray<NSBundle *> *paletteBundles;
 @property (nonatomic, readonly) NSArray<NSBundle *> *customPluginBundles;
+@property (nonatomic, readonly) NSArray<id<GlyphsPlugin>> *filterInstances;
+@property (nonatomic, readonly) NSArray<id<GlyphsPlugin>> *fileFormatInstances;
 @end
 
 @implementation AppDelegate
@@ -85,13 +92,27 @@ NSString * const GlyphsAppIdentifier = (__bridge NSString *)kGlyphsAppIdentifier
 
 - (void)_loadAllPlugins {
     NSMutableArray *mutableBundles = [[NSMutableArray alloc] initWithCapacity:0];
+    NSMutableArray *mutableInstances = [[NSMutableArray alloc] initWithCapacity:0];
     [mutableBundles addObjectsFromArray:[self _loadPluginsFromDirectoryAtPath:[[NSBundle mainBundle] builtInPlugInsPath]]];
     [mutableBundles addObjectsFromArray:[self _loadPluginsFromDirectoryAtPath:[[[NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:@"Glyphs"] stringByAppendingPathComponent:@"Plugins"]]];
+    for (NSBundle *bundle in mutableBundles) {
+        id<GlyphsPlugin> instance = [[[bundle principalClass] alloc] init];
+        if (instance) {
+            if ([instance respondsToSelector:@selector(loadPlugin)]) [instance loadPlugin];
+            [mutableInstances addObject:instance];
+        }
+    }
     _filterBundles = [mutableBundles filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
         return [[(NSBundle *)evaluatedObject principalClass] conformsToProtocol:NSProtocolFromString(@"GlyphsFilter")];
     }]];
     _fileFormatBundles = [mutableBundles filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
         return [[(NSBundle *)evaluatedObject principalClass] conformsToProtocol:NSProtocolFromString(@"GlyphsFileFormat")];
+    }]];
+    _filterInstances = [mutableInstances filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
+        return [evaluatedObject conformsToProtocol:NSProtocolFromString(@"GlyphsFilter")];
+    }]];
+    _fileFormatInstances = [mutableInstances filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
+        return [evaluatedObject conformsToProtocol:NSProtocolFromString(@"GlyphsFileFormat")];
     }]];
 }
 
