@@ -88,10 +88,10 @@ NSString * const GlyphsAppIdentifier = (__bridge NSString *)kGlyphsAppIdentifier
     [mutableBundles addObjectsFromArray:[self _loadPluginsFromDirectoryAtPath:[[NSBundle mainBundle] builtInPlugInsPath]]];
     [mutableBundles addObjectsFromArray:[self _loadPluginsFromDirectoryAtPath:[[[NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:@"Glyphs"] stringByAppendingPathComponent:@"Plugins"]]];
     _filterBundles = [mutableBundles filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
-        return [evaluatedObject conformsToProtocol:NSProtocolFromString(@"GlyphsFilter")];
+        return [[(NSBundle *)evaluatedObject principalClass] conformsToProtocol:NSProtocolFromString(@"GlyphsFilter")];
     }]];
-    _filterBundles = [mutableBundles filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
-        return [evaluatedObject conformsToProtocol:NSProtocolFromString(@"GlyphsFileFormat")];
+    _fileFormatBundles = [mutableBundles filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id evaluatedObject, NSDictionary *bindings) {
+        return [[(NSBundle *)evaluatedObject principalClass] conformsToProtocol:NSProtocolFromString(@"GlyphsFileFormat")];
     }]];
 }
 
