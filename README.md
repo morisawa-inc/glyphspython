@@ -1,5 +1,7 @@
 # glyphspython
 
+**NOTE:** this project is super experimental and has been abandoned as the dependency doesn't support arm64. It's here as a proof-of-concept for reference just in case.
+
 An attempt to provide a Python interpreter which works as a headless version of Glyphs.app.
 
 ## Prerequisites
